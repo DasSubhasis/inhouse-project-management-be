@@ -62,7 +62,7 @@ builder.Services.AddSwaggerGen(opt =>
 {
     opt.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "Inhouse Call Management API",
+        Title = "Inhouse Project Management API",
         Version = "v1"
     });
         opt.MapType<DateOnly>(() => new OpenApiSchema
