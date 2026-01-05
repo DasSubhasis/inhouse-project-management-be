@@ -1,25 +1,32 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Works\\ZiCorp\\Projects\\Tally Division\\Inhouse - Project Management\\Development\\inhouse-project-management-be\\ProjectsApi\\ProjectsApi.csproj": {}
+    "C:\\Users\\Amrita Maity\\Documents\\Amrita Maity\\Projects\\Development\\inhouse-project-management-be\\ProjectsApi\\ProjectsApi.csproj": {}
   },
   "projects": {
-    "D:\\Works\\ZiCorp\\Projects\\Tally Division\\Inhouse - Project Management\\Development\\inhouse-project-management-be\\ProjectsApi\\ProjectsApi.csproj": {
+    "C:\\Users\\Amrita Maity\\Documents\\Amrita Maity\\Projects\\Development\\inhouse-project-management-be\\ProjectsApi\\ProjectsApi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Works\\ZiCorp\\Projects\\Tally Division\\Inhouse - Project Management\\Development\\inhouse-project-management-be\\ProjectsApi\\ProjectsApi.csproj",
+        "projectUniqueName": "C:\\Users\\Amrita Maity\\Documents\\Amrita Maity\\Projects\\Development\\inhouse-project-management-be\\ProjectsApi\\ProjectsApi.csproj",
         "projectName": "ProjectsApi",
-        "projectPath": "D:\\Works\\ZiCorp\\Projects\\Tally Division\\Inhouse - Project Management\\Development\\inhouse-project-management-be\\ProjectsApi\\ProjectsApi.csproj",
-        "packagesPath": "C:\\Users\\subha\\.nuget\\packages\\",
-        "outputPath": "D:\\Works\\ZiCorp\\Projects\\Tally Division\\Inhouse - Project Management\\Development\\inhouse-project-management-be\\ProjectsApi\\obj\\",
+        "projectPath": "C:\\Users\\Amrita Maity\\Documents\\Amrita Maity\\Projects\\Development\\inhouse-project-management-be\\ProjectsApi\\ProjectsApi.csproj",
+        "packagesPath": "C:\\Users\\Amrita Maity\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Amrita Maity\\Documents\\Amrita Maity\\Projects\\Development\\inhouse-project-management-be\\ProjectsApi\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\Users\\subha\\AppData\\Roaming\\NuGet\\NuGet.Config"
+          "C:\\Users\\Amrita Maity\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
           "net8.0"
         ],
         "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
@@ -32,17 +39,20 @@
           "warnAsError": [
             "NU1605"
           ]
-        },
-        "restoreAuditProperties": {
-          "enableAudit": "true",
-          "auditLevel": "low",
-          "auditMode": "direct"
         }
       },
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
           "dependencies": {
+            "Dapper": {
+              "target": "Package",
+              "version": "[2.1.66, )"
+            },
+            "Microsoft.Data.SqlClient": {
+              "target": "Package",
+              "version": "[6.1.3, )"
+            },
             "Swashbuckle.AspNetCore": {
               "target": "Package",
               "version": "[6.6.2, )"
@@ -67,7 +77,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.411/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.101/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
