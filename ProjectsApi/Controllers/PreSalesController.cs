@@ -39,45 +39,94 @@ namespace ProjectsAPI.Controllers
         }
  
       
-   [HttpGet("{projectNo}")]
+[HttpGet("{projectNo}")]
 public async Task<IActionResult> Get(int projectNo)
 {
     using var conn = new SqlConnection(_connectionString);
+
     using var multi = await conn.QueryMultipleAsync(
         "SP_PreSales_GetByProjectNo",
         new { ProjectNo = projectNo },
         commandType: CommandType.StoredProcedure);
 
-    var project = await multi.ReadFirstAsync();
-    var scope = await multi.ReadAsync();
-    var stage = await multi.ReadAsync();
-
-    var rawAttachmentHistory = await multi.ReadAsync<dynamic>();
-    var attachmentHistory = rawAttachmentHistory.Select(a => new
-    {
-        attachmentUrls = JsonSerializer.Deserialize<List<string>>(a.AttachmentUrls),
-        uploadedBy = a.UploadedBy,
-        uploadedDate = a.UploadedDate
-    });
-
-    var payments = await multi.ReadAsync();
-    var attachments = await multi.ReadAsync<string>();
+    var project = await multi.ReadFirstAsync<dynamic>();
+    var payments = (await multi.ReadAsync()).ToList();
+    var attachments = (await multi.ReadAsync<string>()).Distinct().ToList();
 
     return Ok(new
     {
         success = true,
         data = new
         {
-            project,
-            scopeHistory = scope,
-            stageHistory = stage,
-            attachmentHistory,
+            projectNo = project.ProjectNo,
+            partyName = project.PartyName,
+            projectName = project.ProjectName,
+            contactPerson = project.ContactPerson,
+            mobileNumber = project.MobileNumber,
+            emailId = project.EmailId,
+            agentName = project.AgentName,
+            projectValue = project.ProjectValue,
+            scopeOfDevelopment = project.ScopeOfDevelopment,
+            currentStage = project.CurrentStage,
             advancePayments = payments,
             attachmentUrls = attachments
         }
     });
 }
 
+
+        public class FileUploadModel
+        {
+            public List<IFormFile>? Files { get; set; } // Change to List<IFormFile> to handle multiple files
+        }
+
+
+
+        public class FileUploadModel1
+        {
+            public IFormFile? File { get; set; }
+        }
+
+        [HttpPost("logo"), DisableRequestSizeLimit]
+        public async Task<IActionResult> UploadLogo([FromForm] FileUploadModel1 model)
+        {
+            if (model.File == null || model.File.Length == 0)
+            {
+                return BadRequest("Invalid File");
+            }
+
+            var folderName = Path.Combine("Docs", "uploads", "AllFiles");
+            var pathtoSave = Path.Combine(Directory.GetCurrentDirectory(), folderName);
+            if (!Directory.Exists(pathtoSave))
+            {
+                Directory.CreateDirectory(pathtoSave);
+            }
+
+            var filename = $"{Path.GetFileNameWithoutExtension(model.File.FileName)}_{DateTime.Now:yyyy_MM_dd_HH_mm_ss_fff}{Path.GetExtension(model.File.FileName)}";
+            var fullPath = Path.Combine(pathtoSave, filename);
+            var dbPath = Path.Combine(folderName, filename).Replace("\\", "/"); // Replace backslashes with forward slashes
+
+            if (System.IO.File.Exists(fullPath))
+            {
+                return BadRequest("File already exists");
+            }
+
+            using (var stream = new FileStream(fullPath, FileMode.Create))
+            {
+                await model.File.CopyToAsync(stream);
+            }
+
+            // Get the base URL of your application
+            var baseUrl = $"{this.Request.Scheme}://{this.Request.Host}";
+
+            // Generate the full URL path
+            var fullUrlPath = $"{baseUrl}/{dbPath}";
+
+            // Automatically fetch filename and content type
+            var contentType = model.File.ContentType;
+
+            return Ok(new { fullUrlPath, filename, contentType });
+        }
 
 public class PreSalesCreateModel
 {
