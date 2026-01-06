@@ -51,7 +51,7 @@ public async Task<IActionResult> Get(int projectNo)
 
     var project = await multi.ReadFirstAsync<dynamic>();
     var payments = (await multi.ReadAsync()).ToList();
-    var attachments = (await multi.ReadAsync<string>()).Distinct().ToList();
+    var attachments = (await multi.ReadAsync<string>()).ToList();
 
     return Ok(new
     {
