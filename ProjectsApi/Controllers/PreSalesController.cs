@@ -42,37 +42,121 @@ namespace ProjectsAPI.Controllers
 [HttpGet("{projectNo}")]
 public async Task<IActionResult> Get(int projectNo)
 {
-    using var conn = new SqlConnection(_connectionString);
-
-    using var multi = await conn.QueryMultipleAsync(
-        "SP_PreSales_GetByProjectNo",
-        new { ProjectNo = projectNo },
-        commandType: CommandType.StoredProcedure);
-
-    var project = await multi.ReadFirstAsync<dynamic>();
-    var payments = (await multi.ReadAsync()).ToList();
-    var attachments = (await multi.ReadAsync<string>()).ToList();
-
-    return Ok(new
+    // 1️⃣ Validate input early
+    if (projectNo <= 0)
     {
-        success = true,
-        data = new
+        return BadRequest(new
         {
-            projectNo = project.ProjectNo,
-            partyName = project.PartyName,
-            projectName = project.ProjectName,
-            contactPerson = project.ContactPerson,
-            mobileNumber = project.MobileNumber,
-            emailId = project.EmailId,
-            agentName = project.AgentName,
-            projectValue = project.ProjectValue,
-            scopeOfDevelopment = project.ScopeOfDevelopment,
-            currentStage = project.CurrentStage,
-            advancePayments = payments,
-            attachmentUrls = attachments
+            success = false,
+            message = "Invalid project number"
+        });
+    }
+
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+
+        using var multi = await conn.QueryMultipleAsync(
+            "SP_PreSales_GetByProjectNo",
+            new { ProjectNo = projectNo },
+            commandType: CommandType.StoredProcedure
+        );
+
+        // 2️⃣ Main project (single row)
+        var project = await multi.ReadFirstOrDefaultAsync();
+
+        if (project == null)
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Project not found"
+            });
         }
-    });
+
+        // 3️⃣ Other result sets
+        var scopeHistory = await multi.ReadAsync();
+        var stageHistory = await multi.ReadAsync();
+
+        var rawAttachmentHistory = await multi.ReadAsync<dynamic>();
+        var attachmentHistory = rawAttachmentHistory.Select(a => new
+        {
+            attachmentUrls = string.IsNullOrWhiteSpace(a.AttachmentUrls)
+                ? new List<string>()
+                : JsonSerializer.Deserialize<List<string>>(a.AttachmentUrls),
+            uploadedById = a.UploadedById,
+            uploadedByName = a.UploadedByName,
+            uploadedDate = a.UploadedDate
+        });
+
+        var advancePayments = await multi.ReadAsync();
+        var attachmentUrls = await multi.ReadAsync<string>();
+
+        // 4️⃣ MERGE project fields into ONE data object
+        return Ok(new
+        {
+            success = true,
+            data = new
+            {
+                // 🔹 project fields flattened
+                project.ProjectNo,
+                project.PartyName,
+                project.ProjectName,
+                project.ContactPerson,
+                project.MobileNumber,
+                project.EmailId,
+                project.AgentName,
+                project.ProjectValue,
+                project.ScopeOfDevelopment,
+                project.CurrentStage,
+
+                project.CreatedById,
+                project.CreatedByName,
+                project.CreatedDate,
+                project.ModifiedById,
+                project.ModifiedByName,
+                project.ModifiedDate,
+
+                // 🔹 related collections
+                scopeHistory,
+                stageHistory,
+                attachmentHistory,
+                advancePayments,
+                attachmentUrls
+            }
+        });
+    }
+    catch (SqlException ex)
+    {
+        // SQL-level errors (THROW from SP, FK issues, etc.)
+        return StatusCode(500, new
+        {
+            success = false,
+            message = ex.Message
+        });
+    }
+    catch (JsonException)
+    {
+        // JSON deserialization failure
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Attachment data is corrupted"
+        });
+    }
+    catch (Exception ex)
+    {
+        // Any unexpected runtime error
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Unexpected server error",
+            error = ex.Message
+        });
+    }
 }
+
+
 
 
         public class FileUploadModel
@@ -149,12 +233,20 @@ public class PreSalesCreateModel
 [HttpPost("create")]
 public async Task<IActionResult> Create([FromBody] PreSalesCreateModel model)
 {
+    if (model == null)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "Request body is required"
+        });
+    }
+
     try
     {
         using var conn = new SqlConnection(_connectionString);
 
         var param = new DynamicParameters();
-
         param.Add("@PartyName", model.PartyName);
         param.Add("@ProjectName", model.ProjectName);
         param.Add("@ContactPerson", model.ContactPerson);
@@ -165,7 +257,6 @@ public async Task<IActionResult> Create([FromBody] PreSalesCreateModel model)
         param.Add("@ScopeOfDevelopment", model.ScopeOfDevelopment);
         param.Add("@CurrentStage", model.CurrentStage);
 
-        // ✅ Serialize list to JSON
         param.Add("@AttachmentUrls",
             model.AttachmentUrls != null && model.AttachmentUrls.Any()
                 ? JsonSerializer.Serialize(model.AttachmentUrls)
@@ -183,7 +274,28 @@ public async Task<IActionResult> Create([FromBody] PreSalesCreateModel model)
         return Ok(new
         {
             success = true,
+            message = "Pre-sales project created successfully",
             projectNo
+        });
+    }
+    catch (SqlException ex)
+    {
+        // 🔹 Business / validation errors from SQL
+        if (ex.Number >= 50000)
+        {
+            return UnprocessableEntity(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+
+        // 🔹 Actual SQL crash
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Database error occurred",
+            error = ex.Message
         });
     }
     catch (Exception ex)
@@ -191,11 +303,12 @@ public async Task<IActionResult> Create([FromBody] PreSalesCreateModel model)
         return StatusCode(500, new
         {
             success = false,
-            message = "PreSales creation failed",
+            message = "Unexpected server error",
             error = ex.Message
         });
     }
 }
+
 public class PreSalesUpdateModel
 {
     public string PartyName { get; set; } = null!;
@@ -215,12 +328,29 @@ public class PreSalesUpdateModel
 [HttpPut("update/{projectNo}")]
 public async Task<IActionResult> Update(int projectNo, [FromBody] PreSalesUpdateModel model)
 {
+    if (projectNo <= 0)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "Invalid project number"
+        });
+    }
+
+    if (model == null)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "Request body is required"
+        });
+    }
+
     try
     {
         using var conn = new SqlConnection(_connectionString);
 
         var param = new DynamicParameters();
-
         param.Add("@ProjectNo", projectNo);
         param.Add("@PartyName", model.PartyName);
         param.Add("@ProjectName", model.ProjectName);
@@ -246,17 +376,42 @@ public async Task<IActionResult> Update(int projectNo, [FromBody] PreSalesUpdate
             commandType: CommandType.StoredProcedure
         );
 
-        return Ok(new { success = true });
+        return Ok(new
+        {
+            success = true,
+            message = "Pre-sales project updated successfully"
+        });
+    }
+    catch (SqlException ex)
+    {
+        // Business / validation errors from SQL
+        if (ex.Number >= 50000)
+        {
+            return UnprocessableEntity(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Database error occurred",
+            error = ex.Message
+        });
     }
     catch (Exception ex)
     {
         return StatusCode(500, new
         {
             success = false,
+            message = "Unexpected server error",
             error = ex.Message
         });
     }
 }
+
 
 [HttpGet("getall")]
 public async Task<IActionResult> GetAll()
@@ -293,11 +448,57 @@ public class AdvancePaymentModel
     public Guid UserId { get; set; }
 }
 
+[HttpDelete("delete/{projectNo}")]
+public async Task<IActionResult> Delete(int projectNo, [FromQuery] Guid userId)
+{
+    if (projectNo <= 0)
+        return BadRequest(new { success = false, message = "Invalid project number" });
+
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+
+        await conn.ExecuteAsync(
+            "SP_PreSales_Delete",
+            new { ProjectNo = projectNo, UserId = userId },
+            commandType: CommandType.StoredProcedure
+        );
+
+        return Ok(new
+        {
+            success = true,
+            message = "Pre-sales project deleted successfully"
+        });
+    }
+    catch (SqlException ex) when (ex.Number >= 50000)
+    {
+        return UnprocessableEntity(new
+        {
+            success = false,
+            message = ex.Message
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Unexpected server error",
+            error = ex.Message
+        });
+    }
+}
 [HttpPost("{projectNo}/advance-payment")]
 public async Task<IActionResult> AddAdvancePayment(
     int projectNo,
     [FromBody] AdvancePaymentModel model)
 {
+    if (projectNo <= 0)
+        return BadRequest(new { success = false, message = "Invalid project number" });
+
+    if (model == null)
+        return BadRequest(new { success = false, message = "Request body is required" });
+
     try
     {
         using var conn = new SqlConnection(_connectionString);
@@ -315,41 +516,71 @@ public async Task<IActionResult> AddAdvancePayment(
             commandType: CommandType.StoredProcedure
         );
 
-        return Ok(new { success = true });
+        return Ok(new
+        {
+            success = true,
+            message = "Advance payment added successfully"
+        });
+    }
+    catch (SqlException ex) when (ex.Number >= 50000)
+    {
+        return UnprocessableEntity(new
+        {
+            success = false,
+            message = ex.Message
+        });
     }
     catch (Exception ex)
     {
         return StatusCode(500, new
         {
             success = false,
+            message = "Unexpected server error",
             error = ex.Message
         });
     }
 }
-[HttpDelete("delete/{projectNo}")]
-public async Task<IActionResult> Delete(int projectNo, [FromQuery] Guid userId)
+[HttpGet("{projectNo}/advance-payments")]
+public async Task<IActionResult> GetAdvancePayments(int projectNo)
 {
+    if (projectNo <= 0)
+        return BadRequest(new { success = false, message = "Invalid project number" });
+
     try
     {
         using var conn = new SqlConnection(_connectionString);
 
-        await conn.ExecuteAsync(
-            "SP_PreSales_Delete",
-            new { ProjectNo = projectNo, UserId = userId },
-            commandType: CommandType.StoredProcedure
-        );
+        var payments = await conn.QueryAsync(
+            "SP_PreSales_GetAdvancePaymentsByProjectNo",
+            new { ProjectNo = projectNo },
+            commandType: CommandType.StoredProcedure);
 
-        return Ok(new { success = true });
+        return Ok(new
+        {
+            success = true,
+            data = payments
+        });
+    }
+    catch (SqlException ex) when (ex.Number >= 50000)
+    {
+        return UnprocessableEntity(new
+        {
+            success = false,
+            message = ex.Message
+        });
     }
     catch (Exception ex)
     {
         return StatusCode(500, new
         {
             success = false,
+            message = "Unexpected server error",
             error = ex.Message
         });
     }
 }
+
+
 
         #endregion
        
