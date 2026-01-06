@@ -42,7 +42,6 @@ namespace ProjectsAPI.Controllers
 [HttpGet("{projectNo}")]
 public async Task<IActionResult> Get(int projectNo)
 {
-    // 1️⃣ Validate input early
     if (projectNo <= 0)
     {
         return BadRequest(new
@@ -62,9 +61,7 @@ public async Task<IActionResult> Get(int projectNo)
             commandType: CommandType.StoredProcedure
         );
 
-        // 2️⃣ Main project (single row)
         var project = await multi.ReadFirstOrDefaultAsync();
-
         if (project == null)
         {
             return NotFound(new
@@ -74,7 +71,6 @@ public async Task<IActionResult> Get(int projectNo)
             });
         }
 
-        // 3️⃣ Other result sets
         var scopeHistory = await multi.ReadAsync();
         var stageHistory = await multi.ReadAsync();
 
@@ -92,13 +88,14 @@ public async Task<IActionResult> Get(int projectNo)
         var advancePayments = await multi.ReadAsync();
         var attachmentUrls = await multi.ReadAsync<string>();
 
-        // 4️⃣ MERGE project fields into ONE data object
+        // ✅ THIS WAS MISSING
+        var serialNumbers = await multi.ReadAsync();
+
         return Ok(new
         {
             success = true,
             data = new
             {
-                // 🔹 project fields flattened
                 project.ProjectNo,
                 project.PartyName,
                 project.ProjectName,
@@ -117,18 +114,17 @@ public async Task<IActionResult> Get(int projectNo)
                 project.ModifiedByName,
                 project.ModifiedDate,
 
-                // 🔹 related collections
                 scopeHistory,
                 stageHistory,
                 attachmentHistory,
                 advancePayments,
-                attachmentUrls
+                attachmentUrls,
+                serialNumbers
             }
         });
     }
     catch (SqlException ex)
     {
-        // SQL-level errors (THROW from SP, FK issues, etc.)
         return StatusCode(500, new
         {
             success = false,
@@ -137,7 +133,6 @@ public async Task<IActionResult> Get(int projectNo)
     }
     catch (JsonException)
     {
-        // JSON deserialization failure
         return StatusCode(500, new
         {
             success = false,
@@ -146,7 +141,6 @@ public async Task<IActionResult> Get(int projectNo)
     }
     catch (Exception ex)
     {
-        // Any unexpected runtime error
         return StatusCode(500, new
         {
             success = false,
@@ -155,6 +149,7 @@ public async Task<IActionResult> Get(int projectNo)
         });
     }
 }
+
 
 
 
@@ -579,6 +574,77 @@ public async Task<IActionResult> GetAdvancePayments(int projectNo)
             error = ex.Message
         });
     }
+}
+[HttpPost("{projectNo}/quotation")]
+public async Task<IActionResult> AddQuotation(
+    int projectNo,
+    [FromBody] PreSalesQuotationCreateModel model)
+{
+    if (projectNo <= 0)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "Invalid project number"
+        });
+    }
+
+    if (model == null)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "Request body is required"
+        });
+    }
+
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+
+        var param = new DynamicParameters();
+        param.Add("@ProjectNo", projectNo);
+        param.Add("@SerialNumber", model.SerialNumber);
+        param.Add("@Version", model.Version);
+        param.Add("@RecordedBy", model.RecordedById);
+        param.Add("@RecordedDate", model.RecordedDate);
+
+        await conn.ExecuteAsync(
+            "SP_PreSales_AddQuotation",
+            param,
+            commandType: CommandType.StoredProcedure
+        );
+
+        return Ok(new
+        {
+            success = true,
+            message = "Quotation recorded successfully"
+        });
+    }
+    catch (SqlException ex) when (ex.Number >= 50000)
+    {
+        return UnprocessableEntity(new
+        {
+            success = false,
+            message = ex.Message
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Unexpected server error",
+            error = ex.Message
+        });
+    }
+}
+public class PreSalesQuotationCreateModel
+{
+    public string SerialNumber { get; set; } = null!;
+    public string Version { get; set; } = null!;
+    public Guid RecordedById { get; set; }
+    public DateTime RecordedDate { get; set; }
 }
 
 
