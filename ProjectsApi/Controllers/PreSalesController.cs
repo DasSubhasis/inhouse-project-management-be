@@ -39,8 +39,7 @@ namespace ProjectsAPI.Controllers
         }
  
       
-      
-       [HttpGet("{projectNo}")]
+   [HttpGet("{projectNo}")]
 public async Task<IActionResult> Get(int projectNo)
 {
     using var conn = new SqlConnection(_connectionString);
@@ -52,7 +51,15 @@ public async Task<IActionResult> Get(int projectNo)
     var project = await multi.ReadFirstAsync();
     var scope = await multi.ReadAsync();
     var stage = await multi.ReadAsync();
-    var attachmentHistory = await multi.ReadAsync();
+
+    var rawAttachmentHistory = await multi.ReadAsync<dynamic>();
+    var attachmentHistory = rawAttachmentHistory.Select(a => new
+    {
+        attachmentUrls = JsonSerializer.Deserialize<List<string>>(a.AttachmentUrls),
+        uploadedBy = a.UploadedBy,
+        uploadedDate = a.UploadedDate
+    });
+
     var payments = await multi.ReadAsync();
     var attachments = await multi.ReadAsync<string>();
 
@@ -70,6 +77,7 @@ public async Task<IActionResult> Get(int projectNo)
         }
     });
 }
+
 
 public class PreSalesCreateModel
 {
