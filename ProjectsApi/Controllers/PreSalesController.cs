@@ -633,10 +633,10 @@ public async Task<IActionResult> AddQuotation(
 }
 public class PreSalesQuotationCreateModel
 {
-    public string SerialNumber { get; set; } = null!;
-    public string Version { get; set; } = null!;
+    public string? SerialNumber { get; set; } 
+    public string? Version { get; set; } 
     public Guid RecordedById { get; set; }
-    public DateTime RecordedDate { get; set; }
+    public string? RecordedDate { get; set; }
 }
 
 
