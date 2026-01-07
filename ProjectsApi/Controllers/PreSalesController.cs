@@ -150,16 +150,10 @@ public async Task<IActionResult> Get(int projectNo)
     }
 }
 
-
-
-
-
         public class FileUploadModel
         {
             public List<IFormFile>? Files { get; set; } // Change to List<IFormFile> to handle multiple files
         }
-
-
 
         public class FileUploadModel1
         {
@@ -218,8 +212,6 @@ public class PreSalesCreateModel
     public decimal ProjectValue { get; set; }
     public string ScopeOfDevelopment { get; set; } = null!;
     public string CurrentStage { get; set; } = null!;
-
-    // ❌ DO NOT let Dapper auto-map this
     public List<string>? AttachmentUrls { get; set; }
 
     // Backend / Auth
