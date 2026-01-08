@@ -400,18 +400,51 @@ public async Task<IActionResult> Update(int projectNo, [FromBody] PreSalesUpdate
     }
 }
 
-
 [HttpGet("getall")]
 public async Task<IActionResult> GetAll()
 {
     try
     {
         using var conn = new SqlConnection(_connectionString);
-
-        var result = await conn.QueryAsync(
+        using var multi = await conn.QueryMultipleAsync(
             "SP_PreSales_GetAll",
             commandType: CommandType.StoredProcedure
         );
+
+        var projects = (await multi.ReadAsync<dynamic>()).ToList();
+        var serials = (await multi.ReadAsync<dynamic>()).ToList();
+
+        // 🔹 Merge serialNumbers into projects
+        var result = projects.Select(p => new
+        {
+            projectNo = p.ProjectNo,
+            partyName = p.PartyName,
+            projectName = p.ProjectName,
+            contactPerson = p.ContactPerson,
+            mobileNumber = p.MobileNumber,
+            emailId = p.EmailId,
+            agentName = p.AgentName,
+            projectValue = p.ProjectValue,
+            scopeOfDevelopment = p.ScopeOfDevelopment,
+            currentStage = p.CurrentStage,
+            createdBy = p.CreatedBy,
+            createdDate = p.CreatedDate,
+            modifiedBy = p.ModifiedBy,
+            modifiedDate = p.ModifiedDate,
+            latestAttachmentUrl = p.LatestAttachmentUrl,
+
+            serialNumbers = serials
+                .Where(s => s.ProjectNo == p.ProjectNo)
+                .Select(s => new
+                {
+                    serialNumber = s.SerialNumber,
+                    version = s.Version,
+                    recordedById = s.RecordedById,
+                    recordedByName = s.RecordedByName,
+                    recordedDate = s.RecordedDate
+                })
+                .ToList()
+        });
 
         return Ok(new
         {
@@ -424,10 +457,13 @@ public async Task<IActionResult> GetAll()
         return StatusCode(500, new
         {
             success = false,
+            message = "Failed to fetch projects",
             error = ex.Message
         });
     }
 }
+
+
 public class AdvancePaymentModel
 {
     public decimal Amount { get; set; }
