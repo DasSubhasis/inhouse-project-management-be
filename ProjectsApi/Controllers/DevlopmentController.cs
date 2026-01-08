@@ -11,12 +11,12 @@ namespace SWCAPI.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AttacmentController : ControllerBase
+    public class DevlopmentController : ControllerBase
     {
         private readonly IConfiguration _config;
         private readonly string _connectionString; 
 
-        public AttacmentController(IConfiguration config)
+        public DevlopmentController(IConfiguration config)
         {
             _config = config;
             _connectionString = _config.GetConnectionString("DefaultConnection") 

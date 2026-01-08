@@ -39,117 +39,136 @@ namespace ProjectsAPI.Controllers
         }
  
       
-[HttpGet("{projectNo}")]
-public async Task<IActionResult> Get(int projectNo)
-{
-    if (projectNo <= 0)
+  [HttpGet("{projectNo}")]
+    public async Task<IActionResult> Get(int projectNo)
     {
-        return BadRequest(new
+        if (projectNo <= 0)
         {
-            success = false,
-            message = "Invalid project number"
-        });
-    }
-
-    try
-    {
-        using var conn = new SqlConnection(_connectionString);
-
-        using var multi = await conn.QueryMultipleAsync(
-            "SP_PreSales_GetByProjectNo",
-            new { ProjectNo = projectNo },
-            commandType: CommandType.StoredProcedure
-        );
-
-        var project = await multi.ReadFirstOrDefaultAsync();
-        if (project == null)
-        {
-            return NotFound(new
+            return BadRequest(new
             {
                 success = false,
-                message = "Project not found"
+                message = "Invalid project number"
             });
         }
 
-        var scopeHistory = await multi.ReadAsync();
-        var stageHistory = await multi.ReadAsync();
-
-        var rawAttachmentHistory = await multi.ReadAsync<dynamic>();
-        var attachmentHistory = rawAttachmentHistory.Select(a => new
+        try
         {
-            attachmentUrls = string.IsNullOrWhiteSpace(a.AttachmentUrls)
-                ? new List<string>()
-                : JsonSerializer.Deserialize<List<string>>(a.AttachmentUrls),
-            uploadedById = a.UploadedById,
-            uploadedByName = a.UploadedByName,
-            uploadedDate = a.UploadedDate
-        });
+            using var conn = new SqlConnection(_connectionString);
 
-        var advancePayments = await multi.ReadAsync();
-        var attachmentUrls = await multi.ReadAsync<string>();
+            using var multi = await conn.QueryMultipleAsync(
+                "SP_PreSales_GetByProjectNo",
+                new { ProjectNo = projectNo },
+                commandType: CommandType.StoredProcedure
+            );
 
-        // ✅ THIS WAS MISSING
-        var serialNumbers = await multi.ReadAsync();
-
-        return Ok(new
-        {
-            success = true,
-            data = new
+            // 1️⃣ Project
+            var project = await multi.ReadFirstOrDefaultAsync<dynamic>();
+            if (project == null)
             {
-                project.ProjectNo,
-                project.PartyName,
-                project.ProjectName,
-                project.ContactPerson,
-                project.MobileNumber,
-                project.EmailId,
-                project.AgentName,
-                project.ProjectValue,
-                project.ScopeOfDevelopment,
-                project.CurrentStage,
-
-                project.CreatedById,
-                project.CreatedByName,
-                project.CreatedDate,
-                project.ModifiedById,
-                project.ModifiedByName,
-                project.ModifiedDate,
-
-                scopeHistory,
-                stageHistory,
-                attachmentHistory,
-                advancePayments,
-                attachmentUrls,
-                serialNumbers
+                return NotFound(new
+                {
+                    success = false,
+                    message = "Project not found"
+                });
             }
-        });
-    }
-    catch (SqlException ex)
-    {
-        return StatusCode(500, new
-        {
-            success = false,
-            message = ex.Message
-        });
-    }
-    catch (JsonException)
-    {
-        return StatusCode(500, new
-        {
-            success = false,
-            message = "Attachment data is corrupted"
-        });
-    }
-    catch (Exception ex)
-    {
-        return StatusCode(500, new
-        {
-            success = false,
-            message = "Unexpected server error",
-            error = ex.Message
-        });
-    }
-}
 
+            // 2️⃣ Scope history
+            var scopes = (await multi.ReadAsync<dynamic>()).ToList();
+
+            // 3️⃣ Attachments (by scope)
+            var attachments = (await multi.ReadAsync<dynamic>()).ToList();
+
+            // 4️⃣ Stage history
+            var stageHistory = await multi.ReadAsync<dynamic>();
+
+            // 5️⃣ Advance payments
+            var advancePayments = await multi.ReadAsync<dynamic>();
+
+            // 6️⃣ Serial numbers
+            var serialNumbers = await multi.ReadAsync<dynamic>();
+
+            // 🔹 GROUP ATTACHMENTS UNDER SCOPE
+            var scopeHistory = scopes.Select(s => new
+            {
+                version = s.version,
+                scope = s.Scope,
+                modifiedById = s.ModifiedById,
+                modifiedByName = s.ModifiedByName,
+                modifiedDate = s.ModifiedDate,
+
+                attachments = attachments
+                    .Where(a => a.ScopeHistoryId == s.ScopeHistoryId)
+                    .Select(a => new
+                    {
+                        fileUrl = a.FileUrl,
+                        uploadedById = a.UploadedById,
+                        uploadedByName = a.UploadedByName,
+                        uploadedDate = a.UploadedDate
+                    })
+                    .ToList()
+            }).ToList();
+
+            return Ok(new
+            {
+                success = true,
+                data = new
+                {
+                    project.ProjectNo,
+                    project.PartyName,
+                    project.ProjectName,
+                    project.ContactPerson,
+                    project.MobileNumber,
+                    project.EmailId,
+                    project.AgentName,
+                    project.ProjectValue,
+                    project.ScopeOfDevelopment,
+                    project.CurrentStage,
+
+                    project.CreatedById,
+                    project.CreatedByName,
+                    project.CreatedDate,
+                    project.ModifiedById,
+                    project.ModifiedByName,
+                    project.ModifiedDate,
+
+                    scopeHistory,
+                    stageHistory,
+                    attachmentHistory = scopeHistory.Select(s => new
+                    {
+                        s.version,
+                        attachments = s.attachments
+                    }),
+                    advancePayments,
+                    serialNumbers
+                }
+            });
+        }
+        catch (SqlException ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (JsonException)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Attachment data is corrupted"
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "Unexpected server error",
+                error = ex.Message
+            });
+        }
+    }
         public class FileUploadModel
         {
             public List<IFormFile>? Files { get; set; } // Change to List<IFormFile> to handle multiple files
