@@ -665,7 +665,7 @@ public async Task<IActionResult> AddQuotation(
         return Ok(new
         {
             success = true,
-            message = "Quotation recorded successfully"
+            message = "Serial number added successfully"
         });
     }
     catch (SqlException ex) when (ex.Number >= 50000)
