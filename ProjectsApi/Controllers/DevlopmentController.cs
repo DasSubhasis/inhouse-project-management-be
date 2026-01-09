@@ -4,6 +4,8 @@ using Microsoft.Extensions.Configuration;
 using Dapper;
 using System;
 using System.Data;
+using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 
@@ -130,6 +132,195 @@ public async Task<IActionResult> GetAllConfirmed()
         {
             success = false,
             message = "Failed to fetch confirmed projects",
+            error = ex.Message
+        });
+    }
+}
+public class WorkStatusCreateModel
+{
+    public string? Notes { get; set; }
+    public string Status { get; set; } = null!;
+    public List<string>? AttachmentUrls { get; set; }
+    public Guid CreatedBy { get; set; }
+}
+[HttpPost("{projectNo}/status")]
+public async Task<IActionResult> AddStatusUpdate(
+    int projectNo,
+    [FromBody] WorkStatusCreateModel model)
+{
+    if (projectNo <= 0)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "Invalid project number"
+        });
+    }
+
+    if (model == null)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "Request body is required"
+        });
+    }
+
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+
+        var param = new DynamicParameters();
+        param.Add("@ProjectNo", projectNo);
+        param.Add("@Notes", model.Notes);
+        param.Add("@Status", model.Status);
+        param.Add("@AttachmentUrls",
+    model.AttachmentUrls == null
+        ? null
+        : JsonSerializer.Serialize(model.AttachmentUrls));
+
+        param.Add("@CreatedBy", model.CreatedBy);
+
+        var result = await conn.QuerySingleAsync(
+            "SP_Work_StatusUpdate_Insert",
+            param,
+            commandType: CommandType.StoredProcedure
+        );
+
+        return Ok(new
+        {
+            success = true,
+            message = "Status updated successfully",
+            data = result
+        });
+    }
+    catch (SqlException ex) when (ex.Number >= 50000)
+    {
+        return UnprocessableEntity(new
+        {
+            success = false,
+            message = ex.Message
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Unexpected server error",
+            error = ex.Message
+        });
+    }
+}
+
+[HttpGet("work-status/{projectNo}")]
+public async Task<IActionResult> GetWorkStatus(int projectNo)
+{
+    if (projectNo <= 0)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "Invalid project number"
+        });
+    }
+
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+
+        using var multi = await conn.QueryMultipleAsync(
+            "SP_WorkStatus_GetByProjectNo",
+            new { ProjectNo = projectNo },
+            commandType: CommandType.StoredProcedure
+        );
+
+        // ✅ MUST materialize immediately
+        var statuses = (await multi.ReadAsync<dynamic>()).ToList();
+        var attachments = (await multi.ReadAsync<dynamic>()).ToList();
+
+        var data = statuses.Select(s => new
+        {
+            s.StatusUpdateId,
+            s.ProjectId,
+            s.Notes,
+            s.StatusCode,
+            s.StatusText,
+            s.CreatedDate,
+            s.CreatedById,
+            s.CreatedByName,
+
+            attachments = attachments
+                .Where(a => a.StatusUpdateId == s.StatusUpdateId)
+                .Select(a => new
+                {
+                    a.FileUrl,
+                    a.UploadedDate,
+                    a.UploadedById,
+                    a.UploadedByName
+                })
+                .ToList()
+        }).ToList();
+
+        return Ok(new
+        {
+            success = true,
+            data
+        });
+    }
+    catch (SqlException ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = ex.Message
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Unexpected server error",
+            error = ex.Message
+        });
+    }
+}
+
+
+
+[HttpGet("status-master")]
+public async Task<IActionResult> GetAllStatusMaster()
+{
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+
+        var data = await conn.QueryAsync(
+            "SP_Work_StatusMaster_GetAll",
+            commandType: CommandType.StoredProcedure
+        );
+
+        return Ok(new
+        {
+            success = true,
+            data
+        });
+    }
+    catch (SqlException ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = ex.Message
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Unexpected server error",
             error = ex.Message
         });
     }
