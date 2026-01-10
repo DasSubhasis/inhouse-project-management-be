@@ -40,7 +40,7 @@ namespace SWCAPI.Controllers
             public string? UserName { get; set; }
             public string? EmailId { get; set; }
             public Guid? RoleId { get; set; }
-           public Guid? UserCode { get; set; }
+            public Guid? UserCode { get; set; }
             public string? EmployeeType { get; set; }
             public string? RoleName { get; set; }
                  
