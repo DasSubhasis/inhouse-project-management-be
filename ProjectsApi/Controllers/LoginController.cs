@@ -60,11 +60,6 @@ namespace SWCAPI.Controllers
             public string? Otp { get; set; }
         }
 
-
-
-
-
-
         [HttpPost("request-otp")]
         public async Task<IActionResult> RequestOtp([FromBody] EmailRequestModel model)
         {
