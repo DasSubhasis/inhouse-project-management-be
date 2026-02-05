@@ -426,14 +426,24 @@ public async Task<IActionResult> Update(int projectNo, [FromBody] PreSalesUpdate
 }
 
 [HttpGet("getall")]
-public async Task<IActionResult> GetAll()
+public async Task<IActionResult> GetAll([FromQuery] Guid userId)
 {
+    if (userId == Guid.Empty)
+    {
+        return BadRequest(new
+        {
+            success = false,
+            message = "UserId is required"
+        });
+    }
+
     try
     {
         using var conn = new SqlConnection(_connectionString);
 
         using var multi = await conn.QueryMultipleAsync(
             "SP_PreSales_GetAll",
+            new { UserId = userId },
             commandType: CommandType.StoredProcedure
         );
 
@@ -460,11 +470,8 @@ public async Task<IActionResult> GetAll()
 
             latestAttachmentUrl = p.LatestAttachmentUrl,
 
-            /* ⭐ NEW STATUS BLOCK */
-           status = p.Status,
+            status = p.Status,
 
-
-            /* 🔹 serial numbers */
             serialNumbers = serials
                 .Where(s => s.ProjectNo == p.ProjectNo)
                 .Select(s => new
