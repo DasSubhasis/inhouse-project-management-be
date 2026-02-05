@@ -315,7 +315,7 @@ public async Task<IActionResult> GetAllStatusMaster()
 }
 
 [HttpPost("{projectNo}/project-log")]
-public async Task<IActionResult> AddLog(int projectNo, [FromBody] Guid assignedBy)
+public async Task<IActionResult> AddLog(int projectNo, [FromBody] ProjectLogRequest request)
 {
     try
     {
@@ -323,7 +323,11 @@ public async Task<IActionResult> AddLog(int projectNo, [FromBody] Guid assignedB
 
         await conn.ExecuteAsync(
             "SP_Work_ProjectLog_Insert",
-            new { ProjectNo = projectNo, AssignedBy = assignedBy },
+            new
+            {
+                ProjectNo = projectNo,
+                AssignedBy = request.AssignedBy
+            },
             commandType: CommandType.StoredProcedure);
 
         return Ok(new
@@ -334,8 +338,16 @@ public async Task<IActionResult> AddLog(int projectNo, [FromBody] Guid assignedB
     }
     catch (SqlException ex) when (ex.Number >= 60000)
     {
-        return UnprocessableEntity(new { success = false, message = ex.Message });
+        return UnprocessableEntity(new
+        {
+            success = false,
+            message = ex.Message
+        });
     }
+}
+public class ProjectLogRequest
+{
+    public Guid AssignedBy { get; set; }
 }
 
 
