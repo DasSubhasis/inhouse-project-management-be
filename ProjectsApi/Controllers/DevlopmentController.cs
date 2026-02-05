@@ -104,6 +104,7 @@ public async Task<IActionResult> GetAllConfirmed(Guid userId)
             p.CreatedDate,
             p.ModifiedBy,
             p.ModifiedDate,
+            p.AssignedTo,
             p.LatestAttachmentUrl,
 
             serialNumbers = serials
