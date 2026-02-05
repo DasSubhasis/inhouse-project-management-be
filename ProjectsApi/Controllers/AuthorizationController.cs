@@ -21,7 +21,7 @@ namespace SWCAPI.Controllers
             _connectionString = configuration.GetConnectionString("DefaultConnection")!;
         }
 
-        // ✅ Log error to ErrorLog table
+       
         private async Task LogErrorAsync(string controller, string action, string errorMessage, string errorSource = "Controller")
         {
             try
