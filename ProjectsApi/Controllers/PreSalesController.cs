@@ -61,31 +61,45 @@ public async Task<IActionResult> Get(int projectNo)
             commandType: CommandType.StoredProcedure
         );
 
-        // 1️⃣ Project
+        /* 1️⃣ PROJECT */
         var project = await multi.ReadFirstOrDefaultAsync<dynamic>();
         if (project == null)
-            return NotFound(new { success = false, message = "Project not found" });
+        {
+            return NotFound(new
+            {
+                success = false,
+                message = "Project not found"
+            });
+        }
 
-        // 2️⃣ Scope
+        /* 2️⃣ SCOPE HISTORY */
         var scopes = (await multi.ReadAsync<dynamic>()).ToList();
 
-        // 3️⃣ Attachments
+        /* 3️⃣ ATTACHMENTS BY SCOPE */
         var attachments = (await multi.ReadAsync<dynamic>()).ToList();
 
-        // 4️⃣ Latest file urls ⭐
-        var latestFileUrls = (await multi.ReadAsync<string>()).ToList();
+        /* 4️⃣ STATUS UPDATES - ONLY statusName and latestFileUrl ⭐ */
+        var statusUpdates = (await multi.ReadAsync<dynamic>())
+            .Select(s => new
+            {
+                statusName = s.StatusName,
+                latestFileUrl = s.LatestFileUrl
+            })
+            .ToList();
 
-        // 5️⃣ Stage
+        /* 5️⃣ STAGE HISTORY (ORIGINAL - NO CHANGES) */
         var stageHistory = (await multi.ReadAsync<dynamic>()).ToList();
 
-        // 6️⃣ Payments
+        /* 6️⃣ PAYMENTS */
         var advancePayments = (await multi.ReadAsync<dynamic>()).ToList();
 
-        // 7️⃣ Serials
+        /* 7️⃣ SERIAL NUMBERS */
         var serialNumbers = (await multi.ReadAsync<dynamic>()).ToList();
 
 
-        // ⭐ GROUP ATTACHMENTS UNDER SCOPE
+        /* =====================================================
+           ⭐ GROUP ATTACHMENTS UNDER SCOPE (SAFE VERSION)
+        ===================================================== */
         var scopeHistory = scopes.Select(s => new
         {
             version = s.version,
@@ -95,7 +109,7 @@ public async Task<IActionResult> Get(int projectNo)
             modifiedDate = s.ModifiedDate,
 
             attachments = attachments
-                .Where(a => a.ScopeHistoryId == s.ScopeHistoryId)
+                .Where(a => a.ScopeHistoryId?.ToString() == s.ScopeHistoryId?.ToString())
                 .Select(a => new
                 {
                     fileUrl = a.FileUrl,
@@ -107,6 +121,9 @@ public async Task<IActionResult> Get(int projectNo)
         }).ToList();
 
 
+        /* =====================================================
+           ✅ FINAL RESPONSE
+        ===================================================== */
         return Ok(new
         {
             success = true,
@@ -131,15 +148,14 @@ public async Task<IActionResult> Get(int projectNo)
                 project.ModifiedDate,
 
                 scopeHistory,
-                latestFileUrls,   // ⭐ NEW
-
-                stageHistory,
+                statusUpdates,      // ⭐ NEW: Only statusName + latestFileUrl
+                stageHistory,       // ✅ ORIGINAL: Unchanged
                 advancePayments,
                 serialNumbers
             }
         });
     }
-    catch (Exception ex)
+    catch (SqlException ex)
     {
         return StatusCode(500, new
         {
@@ -147,7 +163,17 @@ public async Task<IActionResult> Get(int projectNo)
             message = ex.Message
         });
     }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = "Unexpected server error",
+            error = ex.Message
+        });
+    }
 }
+
 
         public class FileUploadModel
         {
@@ -435,13 +461,8 @@ public async Task<IActionResult> GetAll()
             latestAttachmentUrl = p.LatestAttachmentUrl,
 
             /* ⭐ NEW STATUS BLOCK */
-            latestStatus = new
-            {
-                statusCode = p.StatusCode,
-                statusText = p.StatusText,
-                createdDate = p.StatusCreatedDate,
-                createdByName = p.StatusCreatedByName
-            },
+           status = p.Status,
+
 
             /* 🔹 serial numbers */
             serialNumbers = serials
