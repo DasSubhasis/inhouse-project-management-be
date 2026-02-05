@@ -72,8 +72,8 @@ public async Task<IActionResult> GetSerialNumbers(int projectNo)
         });
     }
 }
-[HttpGet("getall-confirmed")]
-public async Task<IActionResult> GetAllConfirmed()
+[HttpGet("getall-confirmed/{userId}")]
+public async Task<IActionResult> GetAllConfirmed(Guid userId)
 {
     try
     {
@@ -81,61 +81,48 @@ public async Task<IActionResult> GetAllConfirmed()
 
         using var multi = await conn.QueryMultipleAsync(
             "SP_PreSales_GetAll_Confirmed",
+            new { UserId = userId },
             commandType: CommandType.StoredProcedure
         );
 
-        var projects = (await multi.ReadAsync<dynamic>()).ToList();
-        var serials = (await multi.ReadAsync<dynamic>()).ToList();
+        var projects = (await multi.ReadAsync()).ToList();
+        var serials = (await multi.ReadAsync()).ToList();
 
         var result = projects.Select(p => new
         {
-            projectNo = p.ProjectNo,
-            partyName = p.PartyName,
-            projectName = p.ProjectName,
-            contactPerson = p.ContactPerson,
-            mobileNumber = p.MobileNumber,
-            emailId = p.EmailId,
-            agentName = p.AgentName,
-            projectValue = p.ProjectValue,
-            scopeOfDevelopment = p.ScopeOfDevelopment,
-            currentStage = p.CurrentStage,
-
-            createdBy = p.CreatedBy,
-            createdDate = p.CreatedDate,
-            modifiedBy = p.ModifiedBy,
-            modifiedDate = p.ModifiedDate,
-
-            latestAttachmentUrl = p.LatestAttachmentUrl,
+            p.ProjectNo,
+            p.PartyName,
+            p.ProjectName,
+            p.ContactPerson,
+            p.MobileNumber,
+            p.EmailId,
+            p.AgentName,
+            p.ProjectValue,
+            p.ScopeOfDevelopment,
+            p.CurrentStage,
+            p.CreatedBy,
+            p.CreatedDate,
+            p.ModifiedBy,
+            p.ModifiedDate,
+            p.LatestAttachmentUrl,
 
             serialNumbers = serials
                 .Where(s => s.ProjectNo == p.ProjectNo)
-                .Select(s => new
-                {
-                    serialNumber = s.SerialNumber,
-                    version = s.Version,
-                    recordedById = s.RecordedById,
-                    recordedByName = s.RecordedByName,
-                    recordedDate = s.RecordedDate
-                })
                 .ToList()
         });
 
-        return Ok(new
-        {
-            success = true,
-            data = result
-        });
+        return Ok(new { success = true, data = result });
     }
     catch (Exception ex)
     {
         return StatusCode(500, new
         {
             success = false,
-            message = "Failed to fetch confirmed projects",
-            error = ex.Message
+            message = ex.Message
         });
     }
 }
+
 public class WorkStatusCreateModel
 {
     public string? Notes { get; set; }
@@ -325,6 +312,32 @@ public async Task<IActionResult> GetAllStatusMaster()
         });
     }
 }
+
+[HttpPost("{projectNo}/project-log")]
+public async Task<IActionResult> AddLog(int projectNo, [FromBody] Guid assignedBy)
+{
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+
+        await conn.ExecuteAsync(
+            "SP_Work_ProjectLog_Insert",
+            new { ProjectNo = projectNo, AssignedBy = assignedBy },
+            commandType: CommandType.StoredProcedure);
+
+        return Ok(new
+        {
+            success = true,
+            message = "Log added successfully"
+        });
+    }
+    catch (SqlException ex) when (ex.Number >= 60000)
+    {
+        return UnprocessableEntity(new { success = false, message = ex.Message });
+    }
+}
+
+
 
        
     }

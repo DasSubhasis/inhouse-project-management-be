@@ -39,136 +39,116 @@ namespace ProjectsAPI.Controllers
         }
  
       
-  [HttpGet("{projectNo}")]
-    public async Task<IActionResult> Get(int projectNo)
+[HttpGet("{projectNo}")]
+public async Task<IActionResult> Get(int projectNo)
+{
+    if (projectNo <= 0)
     {
-        if (projectNo <= 0)
+        return BadRequest(new
         {
-            return BadRequest(new
-            {
-                success = false,
-                message = "Invalid project number"
-            });
-        }
-
-        try
-        {
-            using var conn = new SqlConnection(_connectionString);
-
-            using var multi = await conn.QueryMultipleAsync(
-                "SP_PreSales_GetByProjectNo",
-                new { ProjectNo = projectNo },
-                commandType: CommandType.StoredProcedure
-            );
-
-            // 1️⃣ Project
-            var project = await multi.ReadFirstOrDefaultAsync<dynamic>();
-            if (project == null)
-            {
-                return NotFound(new
-                {
-                    success = false,
-                    message = "Project not found"
-                });
-            }
-
-            // 2️⃣ Scope history
-            var scopes = (await multi.ReadAsync<dynamic>()).ToList();
-
-            // 3️⃣ Attachments (by scope)
-            var attachments = (await multi.ReadAsync<dynamic>()).ToList();
-
-            // 4️⃣ Stage history
-            var stageHistory = await multi.ReadAsync<dynamic>();
-
-            // 5️⃣ Advance payments
-            var advancePayments = await multi.ReadAsync<dynamic>();
-
-            // 6️⃣ Serial numbers
-            var serialNumbers = await multi.ReadAsync<dynamic>();
-
-            // 🔹 GROUP ATTACHMENTS UNDER SCOPE
-            var scopeHistory = scopes.Select(s => new
-            {
-                version = s.version,
-                scope = s.Scope,
-                modifiedById = s.ModifiedById,
-                modifiedByName = s.ModifiedByName,
-                modifiedDate = s.ModifiedDate,
-
-                attachments = attachments
-                    .Where(a => a.ScopeHistoryId == s.ScopeHistoryId)
-                    .Select(a => new
-                    {
-                        fileUrl = a.FileUrl,
-                        uploadedById = a.UploadedById,
-                        uploadedByName = a.UploadedByName,
-                        uploadedDate = a.UploadedDate
-                    })
-                    .ToList()
-            }).ToList();
-
-            return Ok(new
-            {
-                success = true,
-                data = new
-                {
-                    project.ProjectNo,
-                    project.PartyName,
-                    project.ProjectName,
-                    project.ContactPerson,
-                    project.MobileNumber,
-                    project.EmailId,
-                    project.AgentName,
-                    project.ProjectValue,
-                    project.ScopeOfDevelopment,
-                    project.CurrentStage,
-
-                    project.CreatedById,
-                    project.CreatedByName,
-                    project.CreatedDate,
-                    project.ModifiedById,
-                    project.ModifiedByName,
-                    project.ModifiedDate,
-
-                    scopeHistory,
-                    stageHistory,
-                    attachmentHistory = scopeHistory.Select(s => new
-                    {
-                        s.version,
-                        attachments = s.attachments
-                    }),
-                    advancePayments,
-                    serialNumbers
-                }
-            });
-        }
-        catch (SqlException ex)
-        {
-            return StatusCode(500, new
-            {
-                success = false,
-                message = ex.Message
-            });
-        }
-        catch (JsonException)
-        {
-            return StatusCode(500, new
-            {
-                success = false,
-                message = "Attachment data is corrupted"
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
-            {
-                success = false,
-                message = "Unexpected server error",
-                error = ex.Message
-            });
-        }
+            success = false,
+            message = "Invalid project number"
+        });
     }
+
+    try
+    {
+        using var conn = new SqlConnection(_connectionString);
+
+        using var multi = await conn.QueryMultipleAsync(
+            "SP_PreSales_GetByProjectNo",
+            new { ProjectNo = projectNo },
+            commandType: CommandType.StoredProcedure
+        );
+
+        // 1️⃣ Project
+        var project = await multi.ReadFirstOrDefaultAsync<dynamic>();
+        if (project == null)
+            return NotFound(new { success = false, message = "Project not found" });
+
+        // 2️⃣ Scope
+        var scopes = (await multi.ReadAsync<dynamic>()).ToList();
+
+        // 3️⃣ Attachments
+        var attachments = (await multi.ReadAsync<dynamic>()).ToList();
+
+        // 4️⃣ Latest file urls ⭐
+        var latestFileUrls = (await multi.ReadAsync<string>()).ToList();
+
+        // 5️⃣ Stage
+        var stageHistory = (await multi.ReadAsync<dynamic>()).ToList();
+
+        // 6️⃣ Payments
+        var advancePayments = (await multi.ReadAsync<dynamic>()).ToList();
+
+        // 7️⃣ Serials
+        var serialNumbers = (await multi.ReadAsync<dynamic>()).ToList();
+
+
+        // ⭐ GROUP ATTACHMENTS UNDER SCOPE
+        var scopeHistory = scopes.Select(s => new
+        {
+            version = s.version,
+            scope = s.Scope,
+            modifiedById = s.ModifiedById,
+            modifiedByName = s.ModifiedByName,
+            modifiedDate = s.ModifiedDate,
+
+            attachments = attachments
+                .Where(a => a.ScopeHistoryId == s.ScopeHistoryId)
+                .Select(a => new
+                {
+                    fileUrl = a.FileUrl,
+                    uploadedById = a.UploadedById,
+                    uploadedByName = a.UploadedByName,
+                    uploadedDate = a.UploadedDate
+                })
+                .ToList()
+        }).ToList();
+
+
+        return Ok(new
+        {
+            success = true,
+            data = new
+            {
+                project.ProjectNo,
+                project.PartyName,
+                project.ProjectName,
+                project.ContactPerson,
+                project.MobileNumber,
+                project.EmailId,
+                project.AgentName,
+                project.ProjectValue,
+                project.ScopeOfDevelopment,
+                project.CurrentStage,
+
+                project.CreatedById,
+                project.CreatedByName,
+                project.CreatedDate,
+                project.ModifiedById,
+                project.ModifiedByName,
+                project.ModifiedDate,
+
+                scopeHistory,
+                latestFileUrls,   // ⭐ NEW
+
+                stageHistory,
+                advancePayments,
+                serialNumbers
+            }
+        });
+    }
+    catch (Exception ex)
+    {
+        return StatusCode(500, new
+        {
+            success = false,
+            message = ex.Message
+        });
+    }
+}
+
         public class FileUploadModel
         {
             public List<IFormFile>? Files { get; set; } // Change to List<IFormFile> to handle multiple files
@@ -425,6 +405,7 @@ public async Task<IActionResult> GetAll()
     try
     {
         using var conn = new SqlConnection(_connectionString);
+
         using var multi = await conn.QueryMultipleAsync(
             "SP_PreSales_GetAll",
             commandType: CommandType.StoredProcedure
@@ -433,7 +414,6 @@ public async Task<IActionResult> GetAll()
         var projects = (await multi.ReadAsync<dynamic>()).ToList();
         var serials = (await multi.ReadAsync<dynamic>()).ToList();
 
-        // 🔹 Merge serialNumbers into projects
         var result = projects.Select(p => new
         {
             projectNo = p.ProjectNo,
@@ -446,12 +426,24 @@ public async Task<IActionResult> GetAll()
             projectValue = p.ProjectValue,
             scopeOfDevelopment = p.ScopeOfDevelopment,
             currentStage = p.CurrentStage,
+
             createdBy = p.CreatedBy,
             createdDate = p.CreatedDate,
             modifiedBy = p.ModifiedBy,
             modifiedDate = p.ModifiedDate,
+
             latestAttachmentUrl = p.LatestAttachmentUrl,
 
+            /* ⭐ NEW STATUS BLOCK */
+            latestStatus = new
+            {
+                statusCode = p.StatusCode,
+                statusText = p.StatusText,
+                createdDate = p.StatusCreatedDate,
+                createdByName = p.StatusCreatedByName
+            },
+
+            /* 🔹 serial numbers */
             serialNumbers = serials
                 .Where(s => s.ProjectNo == p.ProjectNo)
                 .Select(s => new
@@ -481,6 +473,7 @@ public async Task<IActionResult> GetAll()
         });
     }
 }
+
 
 
 public class AdvancePaymentModel
