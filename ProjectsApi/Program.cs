@@ -37,7 +37,7 @@ if (!Directory.Exists(keysPath))
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
 
-// ================= SESSION =================
+
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -97,7 +97,6 @@ app.UseCors("AllowAll");
 
 app.UseAuthorization();
 
-// ================= STATIC FILES =================
 var staticFilesPath = Path.Combine(app.Environment.ContentRootPath, "Docs");
 if (!Directory.Exists(staticFilesPath))
 {
@@ -116,7 +115,6 @@ app.UseDirectoryBrowser(new DirectoryBrowserOptions
     RequestPath = "/Docs"
 });
 
-// ================= CONTROLLERS =================
 app.MapControllers();
 
 app.Run();
