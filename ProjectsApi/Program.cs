@@ -4,16 +4,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SWCAPI.Services;
 using System.Text;
-
 var builder = WebApplication.CreateBuilder(args);
-
-
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
-
 builder.Services.AddScoped<OtpEmailService>();
-
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -25,9 +20,6 @@ builder.Services.AddControllers()
     });
 
 builder.Services.AddEndpointsApiExplorer();
-
-// ================= DATA PROTECTION =================
-// Persist keys to avoid session cookie errors on app restart
 var keysPath = Path.Combine(builder.Environment.ContentRootPath, "DataProtectionKeys");
 if (!Directory.Exists(keysPath))
 {
@@ -35,8 +27,6 @@ if (!Directory.Exists(keysPath))
 }
 builder.Services.AddDataProtection()
     .PersistKeysToFileSystem(new DirectoryInfo(keysPath));
-
-
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -44,8 +34,6 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
-
-// ================= CORS =================
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -55,8 +43,6 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 });
-
-// ================= SWAGGER =================
 builder.Services.AddSwaggerGen(opt =>
 {
     opt.SwaggerDoc("v1", new OpenApiInfo
@@ -73,14 +59,8 @@ builder.Services.AddSwaggerGen(opt =>
 });
 
 builder.Services.AddDirectoryBrowser();
-
-
-// ================= BUILD APP =================
 var app = builder.Build();
-
-// ================= MIDDLEWARE =================
 app.UseSession();
-
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
@@ -90,12 +70,7 @@ app.UseSwaggerUI(c =>
 
 app.UseRouting();
 app.UseCors("AllowAll");
-
-// ❌ JWT AUTH REMOVED (THIS WAS CAUSING ERROR)
-// app.UseAuthentication();
-
 app.UseAuthorization();
-
 var staticFilesPath = Path.Combine(app.Environment.ContentRootPath, "Docs");
 if (!Directory.Exists(staticFilesPath))
 {
@@ -107,13 +82,10 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(staticFilesPath),
     RequestPath = "/Docs"
 });
-
 app.UseDirectoryBrowser(new DirectoryBrowserOptions
 {
     FileProvider = new PhysicalFileProvider(staticFilesPath),
     RequestPath = "/Docs"
 });
-
 app.MapControllers();
-
 app.Run();
