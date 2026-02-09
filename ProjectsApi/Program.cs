@@ -7,12 +7,11 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ================= LOGGING =================
+
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
-// ================= SERVICES =================
 builder.Services.AddScoped<OtpEmailService>();
 
 builder.Services.AddControllers()
