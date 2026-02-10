@@ -111,9 +111,7 @@ namespace SWCAPI.Controllers
     })
     .ToList();
 
-
                 structuredMenus.ForEach(m => { if (m.Submenu != null && m.Submenu.Count == 0) m.Submenu = null; });
-
                 return Ok(new { statusCode = 200, data = structuredMenus });
             }
             catch (Exception ex)
