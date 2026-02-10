@@ -264,7 +264,6 @@ public async Task<IActionResult> GetAllMenusByRole(Guid roleId)
             }
         }
 
-        // ==== DELETE MENU ====
         [HttpDelete("delete/{id}")]
         public async Task<IActionResult> DeleteMenu(Guid id)
         {
