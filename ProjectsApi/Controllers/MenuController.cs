@@ -290,8 +290,7 @@ public async Task<IActionResult> GetAllMenusByRole(Guid roleId)
             }
         }
 
-        // ==== GET ONLY MAIN MENUS WITHOUT CHILDREN ====
-        [HttpGet("only-main-menu")]
+            [HttpGet("only-main-menu")]
         public async Task<IActionResult> GetMainMenus()
         {
             try
