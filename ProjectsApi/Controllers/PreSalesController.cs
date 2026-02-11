@@ -86,20 +86,9 @@ public async Task<IActionResult> Get(int projectNo)
                 latestFileUrl = s.LatestFileUrl
             })
             .ToList();
-
-        /* 5️⃣ STAGE HISTORY (ORIGINAL - NO CHANGES) */
         var stageHistory = (await multi.ReadAsync<dynamic>()).ToList();
-
-        /* 6️⃣ PAYMENTS */
         var advancePayments = (await multi.ReadAsync<dynamic>()).ToList();
-
-        /* 7️⃣ SERIAL NUMBERS */
         var serialNumbers = (await multi.ReadAsync<dynamic>()).ToList();
-
-
-        /* =====================================================
-           ⭐ GROUP ATTACHMENTS UNDER SCOPE (SAFE VERSION)
-        ===================================================== */
         var scopeHistory = scopes.Select(s => new
         {
             version = s.version,
