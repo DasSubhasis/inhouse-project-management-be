@@ -120,10 +120,6 @@ public async Task<IActionResult> Get(int projectNo)
                 .ToList()
         }).ToList();
 
-
-        /* =====================================================
-           ✅ FINAL RESPONSE
-        ===================================================== */
         return Ok(new
         {
             success = true,
