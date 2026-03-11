@@ -4,6 +4,8 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using SWCAPI.Services;
 using System.Text;
+using Dapper;
+using System.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -75,6 +77,10 @@ builder.Services.AddSwaggerGen(opt =>
 
 builder.Services.AddDirectoryBrowser();
 
+// ================= DAPPER TYPE HANDLERS =================
+// Register DateOnly type handlers for Dapper
+SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
+SqlMapper.AddTypeHandler(new NullableDateOnlyTypeHandler());
 
 // ================= BUILD APP =================
 var app = builder.Build();
@@ -120,3 +126,53 @@ app.UseDirectoryBrowser(new DirectoryBrowserOptions
 app.MapControllers();
 
 app.Run();
+
+// ================= DAPPER TYPE HANDLER CLASSES =================
+// Custom Type Handler for DateOnly
+public class DateOnlyTypeHandler : SqlMapper.TypeHandler<DateOnly>
+{
+    public override DateOnly Parse(object value)
+    {
+        if (value is DateTime dateTime)
+        {
+            return DateOnly.FromDateTime(dateTime);
+        }
+        throw new InvalidCastException("Unable to convert to DateOnly");
+    }
+
+    public override void SetValue(IDbDataParameter parameter, DateOnly value)
+    {
+        parameter.Value = value.ToDateTime(TimeOnly.MinValue);
+        parameter.DbType = DbType.Date;
+    }
+}
+
+// Nullable DateOnly Type Handler
+public class NullableDateOnlyTypeHandler : SqlMapper.TypeHandler<DateOnly?>
+{
+    public override DateOnly? Parse(object value)
+    {
+        if (value == null || value is DBNull)
+        {
+            return null;
+        }
+        if (value is DateTime dateTime)
+        {
+            return DateOnly.FromDateTime(dateTime);
+        }
+        throw new InvalidCastException("Unable to convert to DateOnly");
+    }
+
+    public override void SetValue(IDbDataParameter parameter, DateOnly? value)
+    {
+        if (value.HasValue)
+        {
+            parameter.Value = value.Value.ToDateTime(TimeOnly.MinValue);
+            parameter.DbType = DbType.Date;
+        }
+        else
+        {
+            parameter.Value = DBNull.Value;
+        }
+    }
+}
