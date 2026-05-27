@@ -32,6 +32,19 @@ namespace SWCAPI.Controllers
             public DateOnly? InitiationDate { get; set; }
             public DateOnly? ExpiryDate { get; set; }
             public Guid? CreatedBy { get; set; }
+            public string? CustomerName { get; set; }
+            public string? AgentName { get; set; }
+            public string? ContactName { get; set; }
+            public string? ContactNumber { get; set; }
+            public string? ContactEmail { get; set; }
+            public decimal? SalesPrice { get; set; }
+            public string? VoucherNumber { get; set; }
+            public DateOnly? VoucherDate { get; set; }
+            public string? Remarks { get; set; }
+            public string? InteraktId { get; set; }
+            public string? InteraktPassword { get; set; }
+            public string? TallyNetId { get; set; }
+            public string? TallyNetPassword { get; set; }
         }
 
         // Model for Get/Update operations
@@ -49,6 +62,19 @@ namespace SWCAPI.Controllers
             public Guid? ModifiedBy { get; set; }
             public DateTime? DeleteDate { get; set; }
             public Guid? DeletedBy { get; set; }
+            public string? CustomerName { get; set; }
+            public string? AgentName { get; set; }
+            public string? ContactName { get; set; }
+            public string? ContactNumber { get; set; }
+            public string? ContactEmail { get; set; }
+            public decimal? SalesPrice { get; set; }
+            public string? VoucherNumber { get; set; }
+            public DateOnly? VoucherDate { get; set; }
+            public string? Remarks { get; set; }
+            public string? InteraktId { get; set; }
+            public string? InteraktPassword { get; set; }
+            public string? TallyNetId { get; set; }
+            public string? TallyNetPassword { get; set; }
         }
 
         // Model for Validation Response
@@ -67,11 +93,17 @@ namespace SWCAPI.Controllers
                 using var conn = new SqlConnection(_connectionString);
 
                 var sql = @"INSERT INTO [dbo].[tbl_License]
-                            ([project_id], [project_name], [tally_serial], 
-                             [initiation_date], [expiry_date], [created_date], [created_by])
+                            ([project_id], [project_name], [tally_serial],
+                             [initiation_date], [expiry_date], [created_date], [created_by],
+                             [customer_name], [agent_name], [contact_name], [contact_number], [contact_email],
+                             [sales_price], [voucher_number], [voucher_date], [remarks],
+                             [interakt_id], [interakt_password], [tally_net_id], [tally_net_password])
                             VALUES
-                            (@ProjectId, @ProjectName, @TallySerial, 
-                             @InitiationDate, @ExpiryDate, GETDATE(), @CreatedBy)";
+                            (@ProjectId, @ProjectName, @TallySerial,
+                             @InitiationDate, @ExpiryDate, GETDATE(), @CreatedBy,
+                             @CustomerName, @AgentName, @ContactName, @ContactNumber, @ContactEmail,
+                             @SalesPrice, @VoucherNumber, @VoucherDate, @Remarks,
+                             @InteraktId, @InteraktPassword, @TallyNetId, @TallyNetPassword)";
 
                 var parameters = new DynamicParameters();
                 parameters.Add("@ProjectId", model.ProjectId);
@@ -80,6 +112,19 @@ namespace SWCAPI.Controllers
                 parameters.Add("@InitiationDate", model.InitiationDate);
                 parameters.Add("@ExpiryDate", model.ExpiryDate);
                 parameters.Add("@CreatedBy", model.CreatedBy);
+                parameters.Add("@CustomerName", model.CustomerName);
+                parameters.Add("@AgentName", model.AgentName);
+                parameters.Add("@ContactName", model.ContactName);
+                parameters.Add("@ContactNumber", model.ContactNumber);
+                parameters.Add("@ContactEmail", model.ContactEmail);
+                parameters.Add("@SalesPrice", model.SalesPrice);
+                parameters.Add("@VoucherNumber", model.VoucherNumber);
+                parameters.Add("@VoucherDate", model.VoucherDate);
+                parameters.Add("@Remarks", model.Remarks);
+                parameters.Add("@InteraktId", model.InteraktId);
+                parameters.Add("@InteraktPassword", model.InteraktPassword);
+                parameters.Add("@TallyNetId", model.TallyNetId);
+                parameters.Add("@TallyNetPassword", model.TallyNetPassword);
 
                 await conn.ExecuteAsync(sql, parameters);
 
@@ -100,7 +145,7 @@ namespace SWCAPI.Controllers
             {
                 using var conn = new SqlConnection(_connectionString);
 
-                var sql = @"SELECT 
+                var sql = @"SELECT
                             [license_id] AS LicenseId,
                             [project_id] AS ProjectId,
                             [project_name] AS ProjectName,
@@ -112,7 +157,20 @@ namespace SWCAPI.Controllers
                             [modified_date] AS ModifiedDate,
                             [modified_by] AS ModifiedBy,
                             [delete_date] AS DeleteDate,
-                            [deleted_by] AS DeletedBy
+                            [deleted_by] AS DeletedBy,
+                            [customer_name] AS CustomerName,
+                            [agent_name] AS AgentName,
+                            [contact_name] AS ContactName,
+                            [contact_number] AS ContactNumber,
+                            [contact_email] AS ContactEmail,
+                            [sales_price] AS SalesPrice,
+                            [voucher_number] AS VoucherNumber,
+                            [voucher_date] AS VoucherDate,
+                            [remarks] AS Remarks,
+                            [interakt_id] AS InteraktId,
+                            [interakt_password] AS InteraktPassword,
+                            [tally_net_id] AS TallyNetId,
+                            [tally_net_password] AS TallyNetPassword
                         FROM [dbo].[tbl_License]
                         WHERE [delete_date] IS NULL
                         ORDER BY [created_date] DESC";
@@ -136,7 +194,7 @@ namespace SWCAPI.Controllers
             {
                 using var conn = new SqlConnection(_connectionString);
 
-                var sql = @"SELECT 
+                var sql = @"SELECT
                             [license_id] AS LicenseId,
                             [project_id] AS ProjectId,
                             [project_name] AS ProjectName,
@@ -148,7 +206,20 @@ namespace SWCAPI.Controllers
                             [modified_date] AS ModifiedDate,
                             [modified_by] AS ModifiedBy,
                             [delete_date] AS DeleteDate,
-                            [deleted_by] AS DeletedBy
+                            [deleted_by] AS DeletedBy,
+                            [customer_name] AS CustomerName,
+                            [agent_name] AS AgentName,
+                            [contact_name] AS ContactName,
+                            [contact_number] AS ContactNumber,
+                            [contact_email] AS ContactEmail,
+                            [sales_price] AS SalesPrice,
+                            [voucher_number] AS VoucherNumber,
+                            [voucher_date] AS VoucherDate,
+                            [remarks] AS Remarks,
+                            [interakt_id] AS InteraktId,
+                            [interakt_password] AS InteraktPassword,
+                            [tally_net_id] AS TallyNetId,
+                            [tally_net_password] AS TallyNetPassword
                         FROM [dbo].[tbl_License]
                         WHERE [license_id] = @LicenseId
                         AND [delete_date] IS NULL";
@@ -179,12 +250,25 @@ namespace SWCAPI.Controllers
                 using var conn = new SqlConnection(_connectionString);
 
                 var sql = @"UPDATE [dbo].[tbl_License]
-                            SET 
+                            SET
                                 [project_id] = @ProjectId,
                                 [project_name] = @ProjectName,
                                 [tally_serial] = @TallySerial,
                                 [initiation_date] = @InitiationDate,
                                 [expiry_date] = @ExpiryDate,
+                                [customer_name] = @CustomerName,
+                                [agent_name] = @AgentName,
+                                [contact_name] = @ContactName,
+                                [contact_number] = @ContactNumber,
+                                [contact_email] = @ContactEmail,
+                                [sales_price] = @SalesPrice,
+                                [voucher_number] = @VoucherNumber,
+                                [voucher_date] = @VoucherDate,
+                                [remarks] = @Remarks,
+                                [interakt_id] = @InteraktId,
+                                [interakt_password] = @InteraktPassword,
+                                [tally_net_id] = @TallyNetId,
+                                [tally_net_password] = @TallyNetPassword,
                                 [modified_date] = GETDATE(),
                                 [modified_by] = @ModifiedBy
                             WHERE [license_id] = @LicenseId
@@ -197,6 +281,19 @@ namespace SWCAPI.Controllers
                 parameters.Add("@TallySerial", model.TallySerial);
                 parameters.Add("@InitiationDate", model.InitiationDate);
                 parameters.Add("@ExpiryDate", model.ExpiryDate);
+                parameters.Add("@CustomerName", model.CustomerName);
+                parameters.Add("@AgentName", model.AgentName);
+                parameters.Add("@ContactName", model.ContactName);
+                parameters.Add("@ContactNumber", model.ContactNumber);
+                parameters.Add("@ContactEmail", model.ContactEmail);
+                parameters.Add("@SalesPrice", model.SalesPrice);
+                parameters.Add("@VoucherNumber", model.VoucherNumber);
+                parameters.Add("@VoucherDate", model.VoucherDate);
+                parameters.Add("@Remarks", model.Remarks);
+                parameters.Add("@InteraktId", model.InteraktId);
+                parameters.Add("@InteraktPassword", model.InteraktPassword);
+                parameters.Add("@TallyNetId", model.TallyNetId);
+                parameters.Add("@TallyNetPassword", model.TallyNetPassword);
                 parameters.Add("@ModifiedBy", model.ModifiedBy);
 
                 await conn.ExecuteAsync(sql, parameters);
@@ -259,7 +356,20 @@ namespace SWCAPI.Controllers
                             [modified_date] AS ModifiedDate,
                             [modified_by] AS ModifiedBy,
                             [delete_date] AS DeleteDate,
-                            [deleted_by] AS DeletedBy
+                            [deleted_by] AS DeletedBy,
+                            [customer_name] AS CustomerName,
+                            [agent_name] AS AgentName,
+                            [contact_name] AS ContactName,
+                            [contact_number] AS ContactNumber,
+                            [contact_email] AS ContactEmail,
+                            [sales_price] AS SalesPrice,
+                            [voucher_number] AS VoucherNumber,
+                            [voucher_date] AS VoucherDate,
+                            [remarks] AS Remarks,
+                            [interakt_id] AS InteraktId,
+                            [interakt_password] AS InteraktPassword,
+                            [tally_net_id] AS TallyNetId,
+                            [tally_net_password] AS TallyNetPassword
                         FROM [dbo].[tbl_License]
                         WHERE [tally_serial] = @TallySerial
                         AND [delete_date] IS NULL
